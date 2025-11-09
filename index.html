@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>두 문장 복붙 도우미</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+        font-size: 16px;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f7f7fb;
+      }
+
+      main {
+        width: min(720px, 100%);
+        padding: 24px;
+        box-sizing: border-box;
+      }
+
+      h1 {
+        margin-top: 0;
+        font-size: 1.8rem;
+        text-align: center;
+      }
+
+      .panel {
+        margin-bottom: 18px;
+      }
+
+      label {
+        font-weight: 600;
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 120px;
+        resize: vertical;
+        padding: 12px;
+        font-size: 1rem;
+        border-radius: 8px;
+        border: 1px solid #d3d7e3;
+        box-sizing: border-box;
+      }
+
+      textarea:focus {
+        outline: none;
+        border-color: #6a5acd;
+        box-shadow: 0 0 0 3px rgba(106, 90, 205, 0.2);
+      }
+
+      .hint {
+        margin-top: 4px;
+        font-size: 0.9rem;
+        color: #666;
+      }
+
+      button {
+        width: 100%;
+        padding: 14px 18px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        background: #6a5acd;
+        color: #fff;
+        transition: transform 120ms ease, box-shadow 120ms ease;
+      }
+
+      button:active {
+        transform: translateY(1px);
+      }
+
+      #status {
+        display: block;
+        text-align: center;
+        margin-top: 10px;
+        min-height: 1.2em;
+        color: #2e8b57;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>두 문장 복붙 도우미</h1>
+
+      <section class="panel">
+        <label for="dynamicText">위 박스 (자주 바뀌는 문장)</label>
+        <textarea
+          id="dynamicText"
+          placeholder="여기에 자주 바뀌는 문장을 입력하세요."
+        ></textarea>
+      </section>
+
+      <section class="panel">
+        <label for="stickyText">아래 박스 (고정 문장, 자동 저장)</label>
+        <textarea
+          id="stickyText"
+          placeholder="고정 문장을 입력하세요. 브라우저에 저장돼 계속 유지됩니다."
+        ></textarea>
+        <p class="hint">내용은 로컬 스토리지에 저장되어 다음 방문에도 유지됩니다.</p>
+      </section>
+
+      <button type="button" id="copyBtn">두 문장 이어 붙여 복사</button>
+      <span id="status" role="status" aria-live="polite"></span>
+    </main>
+
+    <script>
+      const dynamicText = document.getElementById("dynamicText");
+      const stickyText = document.getElementById("stickyText");
+      const copyBtn = document.getElementById("copyBtn");
+      const status = document.getElementById("status");
+      const STORAGE_KEY = "fixedSentence";
+
+      // Restore the sticky sentence when the page loads.
+      stickyText.value = localStorage.getItem(STORAGE_KEY) ?? "";
+
+      stickyText.addEventListener("input", () => {
+        localStorage.setItem(STORAGE_KEY, stickyText.value);
+      });
+
+      copyBtn.addEventListener("click", async () => {
+        const top = dynamicText.value;
+        const bottom = stickyText.value;
+
+        if (!top && !bottom) {
+          status.textContent = "복사할 문장이 없습니다.";
+          return;
+        }
+
+        // Insert a newline only when both fields have content.
+        const newline = top && bottom ? "\n" : "";
+        const combined = `${top}${newline}${bottom}`;
+
+        try {
+          await navigator.clipboard.writeText(combined);
+          status.textContent = "두 문장을 복사했습니다!";
+        } catch (err) {
+          console.error(err);
+          status.textContent =
+            "클립보드 접근이 차단되었습니다. 직접 복사해주세요.";
+        }
+
+        setTimeout(() => {
+          status.textContent = "";
+        }, 2000);
+      });
+    </script>
+  </body>
+</html>
