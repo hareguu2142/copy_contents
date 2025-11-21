@@ -82,6 +82,42 @@
         transform: translateY(1px);
       }
 
+      /* 정리 버튼용 (작게, 가로 길이 자동) */
+      .inline-btn {
+        width: auto;
+        padding: 6px 12px;
+        font-size: 0.9rem;
+        margin-top: 8px;
+      }
+
+      /* 문단 리스트 영역 */
+      #paragraphList {
+        margin: 10px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      #paragraphList li {
+        margin-bottom: 6px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        background: #fff;
+        border: 1px solid #e1e4f0;
+      }
+
+      #paragraphList label {
+        font-weight: 400;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        cursor: pointer;
+        margin-bottom: 0;
+      }
+
+      #paragraphList input[type="checkbox"] {
+        margin-top: 3px;
+      }
+
       #status {
         display: block;
         text-align: center;
@@ -102,6 +138,12 @@
           id="dynamicText"
           placeholder="여기에 자주 바뀌는 문장을 입력하세요."
         ></textarea>
+
+        <!-- 정리 버튼 + 문단 리스트 -->
+        <button type="button" id="organizeBtn" class="inline-btn">
+          정리
+        </button>
+        <ul id="paragraphList"></ul>
       </section>
 
       <section class="panel">
@@ -122,25 +164,89 @@
       const stickyText = document.getElementById("stickyText");
       const copyBtn = document.getElementById("copyBtn");
       const status = document.getElementById("status");
+      const organizeBtn = document.getElementById("organizeBtn");
+      const paragraphList = document.getElementById("paragraphList");
       const STORAGE_KEY = "fixedSentence";
 
-      // Restore the sticky sentence when the page loads.
+      // 고정 문장 복원
       stickyText.value = localStorage.getItem(STORAGE_KEY) ?? "";
 
       stickyText.addEventListener("input", () => {
         localStorage.setItem(STORAGE_KEY, stickyText.value);
       });
 
+      // "정리" 버튼: dynamicText를 문단(줄) 단위로 리스트화
+      organizeBtn.addEventListener("click", () => {
+        const raw = dynamicText.value;
+
+        // 줄 단위로 나눠서 공백 제거 후 비어있지 않은 것만 문단으로 사용
+        const paragraphs = raw
+          .split(/\n+/)
+          .map((p) => p.trim())
+          .filter((p) => p.length > 0);
+
+        paragraphList.innerHTML = "";
+
+        if (paragraphs.length === 0) {
+          status.textContent = "정리할 문단이 없습니다.";
+          setTimeout(() => {
+            status.textContent = "";
+          }, 2000);
+          return;
+        }
+
+        paragraphs.forEach((p, index) => {
+          const li = document.createElement("li");
+
+          const label = document.createElement("label");
+          const checkbox = document.createElement("input");
+          const span = document.createElement("span");
+
+          checkbox.type = "checkbox";
+          checkbox.dataset.index = String(index);
+
+          span.textContent = p;
+
+          label.appendChild(checkbox);
+          label.appendChild(span);
+          li.appendChild(label);
+          paragraphList.appendChild(li);
+        });
+
+        status.textContent = "문단을 정리했습니다. 복사할 문단을 선택하세요.";
+        setTimeout(() => {
+          status.textContent = "";
+        }, 2000);
+      });
+
+      // 복사 버튼: 선택된 문단이 있으면 그 문단만 + stickyText 복사
       copyBtn.addEventListener("click", async () => {
-        const top = dynamicText.value;
         const bottom = stickyText.value;
+
+        // 체크된 문단들만 모으기
+        const checkedParagraphs = Array.from(
+          paragraphList.querySelectorAll("input[type='checkbox']:checked")
+        )
+          .map((checkbox) => {
+            // label > input + span 구조를 가정
+            return checkbox.nextElementSibling
+              ? checkbox.nextElementSibling.textContent
+              : "";
+          })
+          .filter((text) => text && text.trim().length > 0);
+
+        // 하나라도 선택되어 있으면 선택된 문단만 사용,
+        // 아니면 기존처럼 dynamicText 전체를 사용
+        const top =
+          checkedParagraphs.length > 0
+            ? checkedParagraphs.join("\n")
+            : dynamicText.value;
 
         if (!top && !bottom) {
           status.textContent = "복사할 문장이 없습니다.";
           return;
         }
 
-        // Insert a newline only when both fields have content.
         const newline = top && bottom ? "\n" : "";
         const combined = `${top}${newline}${bottom}`;
 
