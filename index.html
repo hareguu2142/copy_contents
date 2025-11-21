@@ -3,12 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>두 문장 복붙 도우미</title>
+    <title>두 문장 복붙 도우미 (범위 선택)</title>
     <style>
       :root {
         color-scheme: light dark;
         font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
         font-size: 16px;
+        --primary-color: #6a5acd;
+        --track-height: 6px;
       }
 
       body {
@@ -55,7 +57,7 @@
 
       textarea:focus {
         outline: none;
-        border-color: #6a5acd;
+        border-color: var(--primary-color);
         box-shadow: 0 0 0 3px rgba(106, 90, 205, 0.2);
       }
 
@@ -73,7 +75,7 @@
         border-radius: 10px;
         border: none;
         cursor: pointer;
-        background: #6a5acd;
+        background: var(--primary-color);
         color: #fff;
         transition: transform 120ms ease, box-shadow 120ms ease;
       }
@@ -82,7 +84,6 @@
         transform: translateY(1px);
       }
 
-      /* 정리 버튼용 (작게, 가로 길이 자동) */
       .inline-btn {
         width: auto;
         padding: 6px 12px;
@@ -90,32 +91,133 @@
         margin-top: 8px;
       }
 
-      /* 문단 리스트 영역 */
+/* === Dual Range Slider Style === */
+      .slider-wrapper {
+        width: 100%;
+        margin-top: 14px; /* 버튼과의 간격 */
+        display: none;
+      }
+
+      .range-values {
+        display: flex;
+        justify-content: space-between;
+        font-size: 1.2rem; /* 폰트 크기 */
+        font-weight: 600;
+        color: var(--primary-color);
+        margin-bottom: -5px; /* 슬라이더와의 간격 좁히기 */
+        padding: 0 2px;
+      }
+
+      /* 슬라이더 바와 핸들을 감싸는 컨테이너 (새로 추가) */
+      .slider-controls {
+        position: relative;
+        width: 100%;
+        height: 40px; /* 슬라이더 조작 영역 높이 확보 */
+      }
+
+      .slider-track {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        height: var(--track-height);
+        width: 100%;
+        background: #d3d7e3;
+        border-radius: 4px;
+        z-index: 1;
+      }
+
+      .slider-range {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        height: var(--track-height);
+        background: var(--primary-color);
+        z-index: 2;
+      }
+
+      .range-input {
+        position: absolute;
+        width: 100%;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        pointer-events: none;
+        -webkit-appearance: none;
+        z-index: 3;
+        margin: 0;
+      }
+
+      /* Webkit Thumb */
+      .range-input::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        pointer-events: auto;
+        height: 20px;
+        width: 20px;
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid var(--primary-color);
+        cursor: pointer;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      }
+
+      /* Firefox Thumb */
+      .range-input::-moz-range-thumb {
+        pointer-events: auto;
+        height: 20px;
+        width: 20px;
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid var(--primary-color);
+        cursor: pointer;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      }
+
+        .range-values {
+                display: flex;
+                justify-content: space-between;
+                font-size: 1.9rem; /* 원하는 크기로 수정 (예: 20px, 1.5rem 등) */
+                font-weight: 600;
+                color: var(--primary-color);
+                margin-bottom: 5px;
+            }
+
+      /* === 문단 리스트 === */
       #paragraphList {
         margin: 10px 0 0;
         padding: 0;
         list-style: none;
+        max-height: 300px;
+        overflow-y: auto;
       }
 
       #paragraphList li {
+        display: flex;
+        gap: 10px;
         margin-bottom: 6px;
-        padding: 6px 8px;
+        padding: 8px 10px;
         border-radius: 6px;
         background: #fff;
         border: 1px solid #e1e4f0;
+        opacity: 0.5; /* 기본 흐리게 */
+        transition: all 0.2s;
       }
 
-      #paragraphList label {
-        font-weight: 400;
-        display: flex;
-        align-items: flex-start;
-        gap: 8px;
-        cursor: pointer;
-        margin-bottom: 0;
+      /* 선택된 범위 안에 있는 리스트 아이템 */
+      #paragraphList li.active {
+        opacity: 1;
+        border-color: var(--primary-color);
+        background-color: #f0f0ff;
+        font-weight: 500;
       }
 
-      #paragraphList input[type="checkbox"] {
-        margin-top: 3px;
+      .num {
+        font-weight: bold;
+        color: var(--primary-color);
+        min-width: 24px;
+      }
+      
+      .txt {
+        word-break: break-all;
       }
 
       #status {
@@ -139,15 +241,34 @@
           placeholder="여기에 자주 바뀌는 문장을 입력하세요."
         ></textarea>
 
-        <!-- 정리 버튼 + 문단 리스트 -->
+        <!-- 정리 버튼 -->
         <button type="button" id="organizeBtn" class="inline-btn">
-          정리
+          정리 (리스트 생성)
         </button>
+
+        <!-- 슬라이더 영역 -->
+        <div class="slider-wrapper" id="sliderWrapper">
+          <!-- 1. 숫자 값 표시 (버튼과 슬라이더 사이) -->
+          <div class="range-values">
+            <span id="rangeStartVal">1</span>
+            <span id="rangeEndVal">1</span>
+          </div>
+
+          <!-- 2. 슬라이더 바 컨트롤 -->
+          <div class="slider-controls">
+            <div class="slider-track"></div>
+            <div class="slider-range" id="sliderRange"></div>
+            <input type="range" id="inputMin" class="range-input" min="1" max="10" value="1" step="1">
+            <input type="range" id="inputMax" class="range-input" min="1" max="10" value="10" step="1">
+          </div>
+        </div>
+
+        <!-- 문단 리스트 -->
         <ul id="paragraphList"></ul>
       </section>
 
       <section class="panel">
-        <label for="stickyText">아래 박스 (고정 문장, 자동 저장)</label>
+        <label for="stickyText">아래 박스 (고정 문장)</label>
         <textarea
           id="stickyText"
           placeholder="고정 문장을 입력하세요. 브라우저에 저장돼 계속 유지됩니다."
@@ -155,7 +276,7 @@
         <p class="hint">내용은 로컬 스토리지에 저장되어 다음 방문에도 유지됩니다.</p>
       </section>
 
-      <button type="button" id="copyBtn">두 문장 이어 붙여 복사</button>
+      <button type="button" id="copyBtn">선택 범위 + 고정 문장 복사</button>
       <span id="status" role="status" aria-live="polite"></span>
     </main>
 
@@ -166,81 +287,138 @@
       const status = document.getElementById("status");
       const organizeBtn = document.getElementById("organizeBtn");
       const paragraphList = document.getElementById("paragraphList");
+      
+      // 슬라이더 관련 요소
+      const sliderWrapper = document.getElementById("sliderWrapper");
+      const inputMin = document.getElementById("inputMin");
+      const inputMax = document.getElementById("inputMax");
+      const sliderRange = document.getElementById("sliderRange");
+      const rangeStartVal = document.getElementById("rangeStartVal");
+      const rangeEndVal = document.getElementById("rangeEndVal");
+
       const STORAGE_KEY = "fixedSentence";
+      let paragraphs = []; // 현재 분리된 문단들을 저장할 배열
 
       // 고정 문장 복원
       stickyText.value = localStorage.getItem(STORAGE_KEY) ?? "";
-
       stickyText.addEventListener("input", () => {
         localStorage.setItem(STORAGE_KEY, stickyText.value);
       });
 
-      // "정리" 버튼: dynamicText를 문단(줄) 단위로 리스트화
+      // "정리" 버튼 클릭 시
       organizeBtn.addEventListener("click", () => {
         const raw = dynamicText.value;
-
-        // 줄 단위로 나눠서 공백 제거 후 비어있지 않은 것만 문단으로 사용
-        const paragraphs = raw
-          .split(/\n+/)
-          .map((p) => p.trim())
-          .filter((p) => p.length > 0);
+        // 빈 줄 제외하고 배열 생성
+        paragraphs = raw.split(/\n+/).map(p => p.trim()).filter(p => p.length > 0);
 
         paragraphList.innerHTML = "";
-
+        
         if (paragraphs.length === 0) {
+          sliderWrapper.style.display = "none";
           status.textContent = "정리할 문단이 없습니다.";
-          setTimeout(() => {
-            status.textContent = "";
-          }, 2000);
           return;
         }
 
+        // 리스트 UI 생성
         paragraphs.forEach((p, index) => {
           const li = document.createElement("li");
-
-          const label = document.createElement("label");
-          const checkbox = document.createElement("input");
-          const span = document.createElement("span");
-
-          checkbox.type = "checkbox";
-          checkbox.dataset.index = String(index);
-
-          span.textContent = p;
-
-          label.appendChild(checkbox);
-          label.appendChild(span);
-          li.appendChild(label);
+          li.id = `para-${index}`;
+          li.innerHTML = `
+            <span class="num">${index + 1}.</span>
+            <span class="txt">${p}</span>
+          `;
           paragraphList.appendChild(li);
         });
 
-        status.textContent = "문단을 정리했습니다. 복사할 문단을 선택하세요.";
-        setTimeout(() => {
-          status.textContent = "";
-        }, 2000);
+        // 슬라이더 초기화 및 표시
+        const total = paragraphs.length;
+        inputMin.max = total;
+        inputMax.max = total;
+        inputMin.value = 1;
+        inputMax.value = total;
+
+        sliderWrapper.style.display = "block";
+        updateSlider(); // 시각적 업데이트 수행
+
+        status.textContent = "문단이 정리되었습니다. 슬라이더로 범위를 선택하세요.";
+        setTimeout(() => status.textContent = "", 2000);
       });
 
-      // 복사 버튼: 선택된 문단이 있으면 그 문단만 + stickyText 복사
+      // 슬라이더 조작 로직
+      function updateSlider() {
+        // 숫자로 변환
+        let minVal = parseInt(inputMin.value);
+        let maxVal = parseInt(inputMax.value);
+        const total = parseInt(inputMax.max);
+
+        // 교차 방지 로직 (min이 max보다 커지면 조정)
+        if (maxVal - minVal < 0) {
+          // 조작한 주체에 따라 값을 밀어줌
+          if (document.activeElement === inputMin) {
+            inputMin.value = maxVal;
+            minVal = maxVal;
+          } else {
+            inputMax.value = minVal;
+            maxVal = minVal;
+          }
+        }
+
+        // 텍스트 표시 업데이트
+        rangeStartVal.textContent = minVal;
+        rangeEndVal.textContent = maxVal;
+
+        // 트랙(색칠된 막대) 위치 및 길이 계산 (백분율)
+        // total이 1일 때는 0으로 나눌 수 없으므로 예외처리
+        const percentMin = total === 1 ? 0 : ((minVal - 1) / (total - 1)) * 100;
+        const percentMax = total === 1 ? 100 : ((maxVal - 1) / (total - 1)) * 100;
+
+        // 만약 total이 1개라면 전체를 꽉 채움, 아니면 계산된 대로
+        if (total === 1) {
+           sliderRange.style.left = "0%";
+           sliderRange.style.width = "100%";
+        } else {
+           sliderRange.style.left = percentMin + "%";
+           sliderRange.style.width = (percentMax - percentMin) + "%";
+        }
+
+        // 리스트 하이라이트 업데이트
+        highlightList(minVal - 1, maxVal - 1);
+      }
+
+      function highlightList(startIndex, endIndex) {
+        const items = paragraphList.querySelectorAll("li");
+        items.forEach((li, index) => {
+          if (index >= startIndex && index <= endIndex) {
+            li.classList.add("active");
+          } else {
+            li.classList.remove("active");
+          }
+        });
+      }
+
+      // 이벤트 리스너 연결
+      inputMin.addEventListener("input", updateSlider);
+      inputMax.addEventListener("input", updateSlider);
+
+
+      // 복사 버튼 클릭
       copyBtn.addEventListener("click", async () => {
         const bottom = stickyText.value;
+        let top = "";
 
-        // 체크된 문단들만 모으기
-        const checkedParagraphs = Array.from(
-          paragraphList.querySelectorAll("input[type='checkbox']:checked")
-        )
-          .map((checkbox) => {
-            // label > input + span 구조를 가정
-            return checkbox.nextElementSibling
-              ? checkbox.nextElementSibling.textContent
-              : "";
-          })
-          .filter((text) => text && text.trim().length > 0);
-
-        // 하나라도 선택되어 있으면 선택된 문단만 사용,
-        // 아니면 기존처럼 dynamicText 전체를 사용
-        const top =
-          checkedParagraphs.length > 0
-            ? checkedParagraphs.join("\n")
-            : dynamicText.value;
+        // 슬라이더가 활성화되어 있으면 범위 내 문단만 가져옴
+        if (paragraphs.length > 0 && sliderWrapper.style.display !== "none") {
+          const startIdx = parseInt(inputMin.value) - 1;
+          const endIdx = parseInt(inputMax.value); // slice는 end 미포함이므로 +1 필요하지만, index는 0부터 시작하므로 value 그대로 쓰면 됨
+          
+          // UI상의 value는 1-based index, 배열은 0-based.
+          // 예: 1~3 선택 -> slice(0, 3) -> 0, 1, 2 인덱스 가져옴.
+          const selectedParagraphs = paragraphs.slice(startIdx, endIdx);
+          top = selectedParagraphs.join("\n");
+        } else {
+          // 정리를 안 눌렀거나 내용이 없으면 원본 전체 사용
+          top = dynamicText.value;
+        }
 
         if (!top && !bottom) {
           status.textContent = "복사할 문장이 없습니다.";
@@ -252,11 +430,10 @@
 
         try {
           await navigator.clipboard.writeText(combined);
-          status.textContent = "두 문장을 복사했습니다!";
+          status.textContent = "선택 범위와 고정 문장을 복사했습니다!";
         } catch (err) {
           console.error(err);
-          status.textContent =
-            "클립보드 접근이 차단되었습니다. 직접 복사해주세요.";
+          status.textContent = "복사 실패. (권한 문제)";
         }
 
         setTimeout(() => {
