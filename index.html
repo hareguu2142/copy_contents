@@ -10,6 +10,7 @@
         font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
         font-size: 16px;
         --primary-color: #6a5acd;
+        --success-color: #28a745; /* 붙여넣기 버튼 색상 */
         --track-height: 6px;
       }
 
@@ -84,35 +85,43 @@
         transform: translateY(1px);
       }
 
-      .inline-btn {
-        width: auto;
-        padding: 6px 12px;
-        font-size: 0.9rem;
+      /* === 버튼 그룹 스타일 (새로 추가) === */
+      .button-group {
+        display: flex;
+        gap: 10px;
         margin-top: 8px;
       }
 
-/* === Dual Range Slider Style === */
+      .inline-btn {
+        flex: 1; /* 공간을 반반씩 차지 */
+        padding: 10px 12px; /* 높이 약간 조절 */
+        font-size: 1rem;
+      }
+
+      .paste-btn {
+        background-color: var(--success-color);
+      }
+
+      /* === Dual Range Slider Style === */
       .slider-wrapper {
         width: 100%;
-        margin-top: 14px; /* 버튼과의 간격 */
+        margin-top: 14px; 
         display: none;
       }
 
       .range-values {
         display: flex;
         justify-content: space-between;
-        font-size: 1.2rem; /* 폰트 크기 */
+        font-size: 1.9rem; 
         font-weight: 600;
         color: var(--primary-color);
-        margin-bottom: -5px; /* 슬라이더와의 간격 좁히기 */
-        padding: 0 2px;
+        margin-bottom: 5px;
       }
 
-      /* 슬라이더 바와 핸들을 감싸는 컨테이너 (새로 추가) */
       .slider-controls {
         position: relative;
         width: 100%;
-        height: 40px; /* 슬라이더 조작 영역 높이 확보 */
+        height: 40px; 
       }
 
       .slider-track {
@@ -147,7 +156,6 @@
         margin: 0;
       }
 
-      /* Webkit Thumb */
       .range-input::-webkit-slider-thumb {
         -webkit-appearance: none;
         pointer-events: auto;
@@ -160,7 +168,6 @@
         box-shadow: 0 1px 3px rgba(0,0,0,0.3);
       }
 
-      /* Firefox Thumb */
       .range-input::-moz-range-thumb {
         pointer-events: auto;
         height: 20px;
@@ -171,15 +178,6 @@
         cursor: pointer;
         box-shadow: 0 1px 3px rgba(0,0,0,0.3);
       }
-
-        .range-values {
-                display: flex;
-                justify-content: space-between;
-                font-size: 1.9rem; /* 원하는 크기로 수정 (예: 20px, 1.5rem 등) */
-                font-weight: 600;
-                color: var(--primary-color);
-                margin-bottom: 5px;
-            }
 
       /* === 문단 리스트 === */
       #paragraphList {
@@ -198,11 +196,10 @@
         border-radius: 6px;
         background: #fff;
         border: 1px solid #e1e4f0;
-        opacity: 0.5; /* 기본 흐리게 */
+        opacity: 0.5; 
         transition: all 0.2s;
       }
 
-      /* 선택된 범위 안에 있는 리스트 아이템 */
       #paragraphList li.active {
         opacity: 1;
         border-color: var(--primary-color);
@@ -241,20 +238,23 @@
           placeholder="여기에 자주 바뀌는 문장을 입력하세요."
         ></textarea>
 
-        <!-- 정리 버튼 -->
-        <button type="button" id="organizeBtn" class="inline-btn">
-          정리 (리스트 생성)
-        </button>
+        <!-- 버튼 그룹: 정리 & 붙여넣기 -->
+        <div class="button-group">
+          <button type="button" id="organizeBtn" class="inline-btn">
+            정리 (리스트 생성)
+          </button>
+          <button type="button" id="pasteBtn" class="inline-btn paste-btn">
+            비우고 붙여넣기
+          </button>
+        </div>
 
         <!-- 슬라이더 영역 -->
         <div class="slider-wrapper" id="sliderWrapper">
-          <!-- 1. 숫자 값 표시 (버튼과 슬라이더 사이) -->
           <div class="range-values">
             <span id="rangeStartVal">1</span>
             <span id="rangeEndVal">1</span>
           </div>
 
-          <!-- 2. 슬라이더 바 컨트롤 -->
           <div class="slider-controls">
             <div class="slider-track"></div>
             <div class="slider-range" id="sliderRange"></div>
@@ -286,9 +286,9 @@
       const copyBtn = document.getElementById("copyBtn");
       const status = document.getElementById("status");
       const organizeBtn = document.getElementById("organizeBtn");
+      const pasteBtn = document.getElementById("pasteBtn");
       const paragraphList = document.getElementById("paragraphList");
       
-      // 슬라이더 관련 요소
       const sliderWrapper = document.getElementById("sliderWrapper");
       const inputMin = document.getElementById("inputMin");
       const inputMax = document.getElementById("inputMax");
@@ -297,7 +297,7 @@
       const rangeEndVal = document.getElementById("rangeEndVal");
 
       const STORAGE_KEY = "fixedSentence";
-      let paragraphs = []; // 현재 분리된 문단들을 저장할 배열
+      let paragraphs = [];
 
       // 고정 문장 복원
       stickyText.value = localStorage.getItem(STORAGE_KEY) ?? "";
@@ -305,10 +305,29 @@
         localStorage.setItem(STORAGE_KEY, stickyText.value);
       });
 
+      // === [기능 추가] 비우고 붙여넣기 버튼 ===
+      pasteBtn.addEventListener("click", async () => {
+        try {
+          const text = await navigator.clipboard.readText();
+          dynamicText.value = text;
+          
+          // 텍스트가 바뀌었으므로 기존 리스트/슬라이더 초기화
+          paragraphList.innerHTML = "";
+          sliderWrapper.style.display = "none";
+          paragraphs = [];
+          
+          status.textContent = "붙여넣기 완료! '정리' 버튼을 눌러주세요.";
+        } catch (err) {
+          console.error("Clipboard read failed:", err);
+          status.textContent = "붙여넣기 실패 (권한 허용 필요).";
+        }
+
+        setTimeout(() => status.textContent = "", 2000);
+      });
+
       // "정리" 버튼 클릭 시
       organizeBtn.addEventListener("click", () => {
         const raw = dynamicText.value;
-        // 빈 줄 제외하고 배열 생성
         paragraphs = raw.split(/\n+/).map(p => p.trim()).filter(p => p.length > 0);
 
         paragraphList.innerHTML = "";
@@ -319,7 +338,6 @@
           return;
         }
 
-        // 리스트 UI 생성
         paragraphs.forEach((p, index) => {
           const li = document.createElement("li");
           li.id = `para-${index}`;
@@ -330,7 +348,6 @@
           paragraphList.appendChild(li);
         });
 
-        // 슬라이더 초기화 및 표시
         const total = paragraphs.length;
         inputMin.max = total;
         inputMax.max = total;
@@ -338,22 +355,18 @@
         inputMax.value = total;
 
         sliderWrapper.style.display = "block";
-        updateSlider(); // 시각적 업데이트 수행
+        updateSlider(); 
 
         status.textContent = "문단이 정리되었습니다. 슬라이더로 범위를 선택하세요.";
         setTimeout(() => status.textContent = "", 2000);
       });
 
-      // 슬라이더 조작 로직
       function updateSlider() {
-        // 숫자로 변환
         let minVal = parseInt(inputMin.value);
         let maxVal = parseInt(inputMax.value);
         const total = parseInt(inputMax.max);
 
-        // 교차 방지 로직 (min이 max보다 커지면 조정)
         if (maxVal - minVal < 0) {
-          // 조작한 주체에 따라 값을 밀어줌
           if (document.activeElement === inputMin) {
             inputMin.value = maxVal;
             minVal = maxVal;
@@ -363,16 +376,12 @@
           }
         }
 
-        // 텍스트 표시 업데이트
         rangeStartVal.textContent = minVal;
         rangeEndVal.textContent = maxVal;
 
-        // 트랙(색칠된 막대) 위치 및 길이 계산 (백분율)
-        // total이 1일 때는 0으로 나눌 수 없으므로 예외처리
         const percentMin = total === 1 ? 0 : ((minVal - 1) / (total - 1)) * 100;
         const percentMax = total === 1 ? 100 : ((maxVal - 1) / (total - 1)) * 100;
 
-        // 만약 total이 1개라면 전체를 꽉 채움, 아니면 계산된 대로
         if (total === 1) {
            sliderRange.style.left = "0%";
            sliderRange.style.width = "100%";
@@ -381,7 +390,6 @@
            sliderRange.style.width = (percentMax - percentMin) + "%";
         }
 
-        // 리스트 하이라이트 업데이트
         highlightList(minVal - 1, maxVal - 1);
       }
 
@@ -396,27 +404,19 @@
         });
       }
 
-      // 이벤트 리스너 연결
       inputMin.addEventListener("input", updateSlider);
       inputMax.addEventListener("input", updateSlider);
 
-
-      // 복사 버튼 클릭
       copyBtn.addEventListener("click", async () => {
         const bottom = stickyText.value;
         let top = "";
 
-        // 슬라이더가 활성화되어 있으면 범위 내 문단만 가져옴
         if (paragraphs.length > 0 && sliderWrapper.style.display !== "none") {
           const startIdx = parseInt(inputMin.value) - 1;
-          const endIdx = parseInt(inputMax.value); // slice는 end 미포함이므로 +1 필요하지만, index는 0부터 시작하므로 value 그대로 쓰면 됨
-          
-          // UI상의 value는 1-based index, 배열은 0-based.
-          // 예: 1~3 선택 -> slice(0, 3) -> 0, 1, 2 인덱스 가져옴.
+          const endIdx = parseInt(inputMax.value); 
           const selectedParagraphs = paragraphs.slice(startIdx, endIdx);
           top = selectedParagraphs.join("\n");
         } else {
-          // 정리를 안 눌렀거나 내용이 없으면 원본 전체 사용
           top = dynamicText.value;
         }
 
